@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Check, CheckCircle2, ChevronLeft, ChevronRight, CircleHelp,
   ClipboardCheck, Columns3, Database, Download, FileSearch, Filter, FlaskConical, Gauge, Languages,
-  LibraryBig, ListChecks, LoaderCircle, LogOut, Menu, MoreHorizontal, PanelLeftClose, PanelLeftOpen,
+  LibraryBig, ListChecks, LoaderCircle, LogOut, Menu, MessageSquareText, MoreHorizontal, PanelLeftClose, PanelLeftOpen,
   Plus, RefreshCw, Search, ShieldCheck, Sparkles, Trash2, UserPlus, Users, X,
 } from 'lucide-react'
 import { useAuth } from './lib/auth.jsx'
@@ -241,6 +241,50 @@ function SentencePair({ item, compact = false }) {
   </div>
 }
 
+function HighlightedSentence({ content = '', sentence = '' }) {
+  const start = sentence ? content.indexOf(sentence) : -1
+  if (start < 0) return content
+  return <>{content.slice(0, start)}<mark>{content.slice(start, start + sentence.length)}</mark>{content.slice(start + sentence.length)}</>
+}
+
+function ConversationContext({ item, onClose }) {
+  const targetTurnRef = useRef(null)
+  const targetTurn = Math.max(0, Number(item.turnIndex || 1) - 1)
+  const maxMessages = Math.max(item.originalMessages?.length || 0, item.translatedMessages?.length || 0)
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => targetTurnRef.current?.scrollIntoView({ block: 'center' }))
+    function handleKeyDown(event) { if (event.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      cancelAnimationFrame(frame)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [onClose])
+
+  return <div className="modal-backdrop context-backdrop" onMouseDown={onClose}>
+    <section className="modal context-modal" role="dialog" aria-modal="true" aria-labelledby="context-title" onMouseDown={(event) => event.stopPropagation()}>
+      <div className="modal-heading context-heading"><div><p className="eyebrow">Conversation {item.sourceIndex}</p><h2 id="context-title">Conversation context</h2><p>The sentence being rated is highlighted in turn {item.turnIndex}.</p></div><button className="icon-button" onClick={onClose} aria-label="Close conversation context"><X size={19} /></button></div>
+      <div className="context-legend"><span><i />Sentence being rated</span><small>{maxMessages} {maxMessages === 1 ? 'turn' : 'turns'} · English and Bengali aligned</small></div>
+      <div className="context-turns">
+        {Array.from({ length: maxMessages }, (_, index) => {
+          const original = item.originalMessages?.[index]
+          const translated = item.translatedMessages?.[index]
+          const isTarget = index === targetTurn
+          const role = original?.role || translated?.role || 'unknown'
+          return <article className={`context-turn ${isTarget ? 'target' : ''}`} ref={isTarget ? targetTurnRef : null} key={index}>
+            <header><span>Turn {index + 1}</span><strong>{role}</strong>{isTarget && <em><MessageSquareText size={13} />Rated sentence</em>}</header>
+            <div className="context-message-grid">
+              <div><small>EN · Original</small><p><HighlightedSentence content={original?.content || 'No aligned turn'} sentence={isTarget ? item.originalText : ''} /></p></div>
+              <div className="bengali-text" lang="bn"><small>বাং · বাংলা অনুবাদ</small><p><HighlightedSentence content={translated?.content || 'অনুপস্থিত বার্তা'} sentence={isTarget ? item.translatedText : ''} /></p></div>
+            </div>
+          </article>
+        })}
+      </div>
+    </section>
+  </div>
+}
+
 function DatasetLibrary() {
   const [data, setData] = useState(null)
   const [page, setPage] = useState(1)
@@ -400,6 +444,7 @@ function AnnotationApp() {
   const [filter, setFilter] = useState('all')
   const [toast, setToast] = useState('')
   const [queueCollapsed, setQueueCollapsed] = useState(() => localStorage.getItem('cosafe-queue-collapsed') === 'true')
+  const [showContext, setShowContext] = useState(false)
 
   async function loadStudy() {
     setLoading(true)
@@ -412,6 +457,7 @@ function AnnotationApp() {
   useEffect(() => { loadStudy() }, [])
   useEffect(() => {
     if (!selected || !study) return
+    setShowContext(false)
     setItem(null)
     api.get(`/items/${selected}`).then((nextItem) => {
       setItem(nextItem)
@@ -453,7 +499,7 @@ function AnnotationApp() {
     <header className="annotation-topbar"><div><p className="eyebrow">Independent review</p><h1>Translation workspace</h1></div><div className="overall-progress"><span><strong>{submitted}</strong> of {queue.length} submitted</span><div className="progress-track"><i style={{ width: `${queue.length ? (submitted / queue.length) * 100 : 0}%` }} /></div></div></header>
     {!queue.length ? <EmptyState icon={Database} title="The sentence sample is not ready" text="Ask the administrator to import sentence pairs and generate the active 500-sentence sample." /> : <div className={`annotation-layout ${queueCollapsed ? 'queue-collapsed' : ''}`}>
       <aside className={`queue-panel ${queueCollapsed ? 'collapsed' : ''}`}><div className="queue-heading"><h2>Sentence queue</h2><span>{queue.length}</span><button className="icon-button" onClick={toggleQueue} title={queueCollapsed ? 'Expand sample queue' : 'Minimize sample queue'}>{queueCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}</button></div><label className="search-box"><Search size={15} /><input placeholder="Find sentence" value={search} onChange={(event) => setSearch(event.target.value)} /></label><div className="filter-row"><Filter size={14} /><button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>All</button><button className={filter === 'submitted' ? 'active' : ''} onClick={() => setFilter('submitted')}>Done</button><button className={filter === 'draft' ? 'active' : ''} onClick={() => setFilter('draft')}>Drafts</button></div><div className="queue-list">{visibleQueue.map((entry) => { const status = study.annotations[entry.id]?.status || 'not-started'; return <button className={selected === entry.id ? 'active' : ''} key={entry.id} onClick={() => setSelected(entry.id)}><span className={`queue-status ${status}`}>{status === 'submitted' ? <Check size={13} /> : entry.order}</span><span><strong>{prettyCategory(entry.category)}</strong><small>Conversation {entry.sourceIndex} · Turn {entry.turnIndex} · Sentence {entry.sentenceIndex || 1}</small></span></button> })}</div></aside>
-      <section className="review-canvas"><div className="record-bar"><div><button className="icon-button queue-inline-toggle" onClick={toggleQueue} title={queueCollapsed ? 'Expand sample queue' : 'Minimize sample queue'}>{queueCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}</button><span>SENTENCE {String(currentIndex + 1).padStart(3, '0')}</span><strong>{prettyCategory(item?.category)}</strong><small>Conversation {item?.sourceIndex} · Turn {item?.turnIndex} · Sentence {item?.sentenceIndex || 1} · {item?.role}</small></div><div><button className="icon-button" disabled={currentIndex <= 0} onClick={() => setSelected(queue[currentIndex - 1].id)} title="Previous sentence"><ChevronLeft size={18} /></button><button className="icon-button" disabled={currentIndex >= queue.length - 1} onClick={() => setSelected(queue[currentIndex + 1].id)} title="Next sentence"><ChevronRight size={18} /></button></div></div>{item ? <SentencePair item={item} /> : <Spinner label="Loading sentence pair" />}</section>
+      <section className="review-canvas"><div className="record-bar"><div><button className="icon-button queue-inline-toggle" onClick={toggleQueue} title={queueCollapsed ? 'Expand sample queue' : 'Minimize sample queue'}>{queueCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}</button><span>SENTENCE {String(currentIndex + 1).padStart(3, '0')}</span><strong>{prettyCategory(item?.category)}</strong><small>Conversation {item?.sourceIndex} · Turn {item?.turnIndex} · Sentence {item?.sentenceIndex || 1} · {item?.role}</small></div><div className="record-actions"><button className="button secondary context-button" disabled={!item} onClick={() => setShowContext(true)}><MessageSquareText size={15} />View context</button><button className="icon-button" disabled={currentIndex <= 0} onClick={() => setSelected(queue[currentIndex - 1].id)} title="Previous sentence"><ChevronLeft size={18} /></button><button className="icon-button" disabled={currentIndex >= queue.length - 1} onClick={() => setSelected(queue[currentIndex + 1].id)} title="Next sentence"><ChevronRight size={18} /></button></div></div>{item ? <SentencePair item={item} /> : <Spinner label="Loading sentence pair" />}</section>
       <aside className="evaluation-panel"><div className="evaluation-heading"><div><p className="eyebrow">Your evaluation</p><h2>Rate this translation</h2></div>{form.status === 'submitted' && <span className="submitted-badge"><Check size={14} />Submitted</span>}</div>{criteria.map((criterion) => <RatingGroup key={criterion.key} criterion={criterion} value={form.ratings[criterion.key]} onChange={(rating) => setForm((current) => ({ ...current, ratings: { ...current.ratings, [criterion.key]: rating }, status: 'draft' }))} />)}
         <div className="issues"><span>Translation issues <small>optional</small></span><div>{issueOptions.map((issue) => <button className={form.issueTags.includes(issue) ? 'selected' : ''} key={issue} onClick={() => toggleIssue(issue)}>{form.issueTags.includes(issue) && <Check size={12} />}{issue}</button>)}</div></div>
         <label className="field notes"><span>Reviewer note <small>optional</small></span><textarea rows="3" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value, status: 'draft' })} placeholder="Briefly explain a rating or flag an issue…" /></label>
@@ -461,6 +507,7 @@ function AnnotationApp() {
         {!allRated && <p className="required-note">Complete all three criteria to submit.</p>}
       </aside>
     </div>}
+    {showContext && item && <ConversationContext item={item} onClose={() => setShowContext(false)} />}
   </main><Toast message={toast} onClose={() => setToast('')} /></Shell>
 }
 

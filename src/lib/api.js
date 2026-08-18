@@ -41,7 +41,15 @@ async function mockRequest(method, path, body) {
       annotations: Object.fromEntries(own.map((annotation) => [annotation.itemId, annotation])),
     }
   }
-  if (path.startsWith('/items/')) return structuredClone(demoState.items.find((item) => item.id === path.split('/').at(-1)))
+  if (path.startsWith('/items/')) {
+    const sentence = demoState.items.find((item) => item.id === path.split('/').at(-1))
+    const conversation = demoState.conversations.find((entry) => entry.id === sentence?.conversationId)
+    return structuredClone(sentence ? {
+      ...sentence,
+      originalMessages: conversation?.originalMessages || [],
+      translatedMessages: conversation?.translatedMessages || [],
+    } : undefined)
+  }
   if (method === 'PUT' && path.startsWith('/annotations/')) {
     const itemId = path.split('/').at(-1)
     const existing = demoState.annotations.findIndex((annotation) => annotation.userId === currentUser.uid && annotation.itemId === itemId)

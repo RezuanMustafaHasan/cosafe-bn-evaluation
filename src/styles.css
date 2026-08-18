@@ -325,6 +325,8 @@ h2 { letter-spacing: -.025em; }
 .record-bar strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; text-transform: capitalize; }
 .record-bar small { color: var(--muted); font-size: 9px; }
 .record-bar > div:last-child { display: flex; }
+.record-actions { align-items: center; gap: 3px; }
+.context-button { min-height: 32px; margin-right: 5px; padding: 0 10px; font-size: 10px; }
 .queue-inline-toggle { display: none; }
 .queue-collapsed .queue-inline-toggle { display: grid; flex: 0 0 auto; }
 .evaluation-panel { padding: 18px; border-left: 1px solid var(--line); background: var(--paper); }
@@ -351,6 +353,28 @@ h2 { letter-spacing: -.025em; }
 .field.notes textarea { font-size: 10px; }
 .evaluation-actions { display: grid; grid-template-columns: .8fr 1.2fr; gap: 7px; margin-top: 13px; }
 .required-note { margin: 7px 0 0; color: var(--muted); font-size: 8px; text-align: right; }
+
+.context-backdrop { padding: 28px; }
+.context-modal { width: min(960px, 100%); height: min(820px, 92vh); max-height: 92vh; display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+.context-heading { flex: 0 0 auto; padding: 22px 24px 17px; border-bottom: 1px solid var(--line); }
+.context-heading h2 { margin: 0 0 5px; font-size: 22px; }
+.context-heading p:last-child { margin: 0; color: var(--muted); font-size: 12px; }
+.context-legend { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 18px; padding: 10px 24px; color: var(--muted); border-bottom: 1px solid var(--line); background: #faf8f5; font-size: 10px; }
+.context-legend span { display: flex; align-items: center; gap: 7px; color: #8b3d37; font-weight: 700; }
+.context-legend i { width: 9px; height: 9px; border-radius: 2px; background: var(--coral); }
+.context-turns { min-height: 0; display: grid; gap: 10px; overflow-y: auto; padding: 18px 24px 28px; scroll-behavior: smooth; }
+.context-turn { border: 1px solid #dfd9d2; background: white; scroll-margin: 22px; }
+.context-turn > header { min-height: 37px; display: flex; align-items: center; gap: 8px; padding: 8px 12px; color: var(--muted); border-bottom: 1px solid #ebe6df; background: #f8f6f2; font-size: 9px; text-transform: uppercase; letter-spacing: .06em; }
+.context-turn > header strong { color: var(--ink); }
+.context-turn > header em { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; padding: 4px 7px; color: #8e3d37; border-radius: 4px; background: var(--coral-soft); font-style: normal; font-weight: 700; letter-spacing: 0; text-transform: none; }
+.context-message-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); }
+.context-message-grid > div { min-width: 0; padding: 13px 14px 15px; background: #fffdf9; }
+.context-message-grid > div:last-child { background: #fffaf4; }
+.context-message-grid small { color: #877f84; font-size: 8px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.context-message-grid p { margin: 7px 0 0; font-size: 12px; line-height: 1.65; white-space: pre-wrap; }
+.context-turn.target { border-color: #d67870; box-shadow: 0 0 0 2px rgba(225,105,94,.15); }
+.context-turn.target > header { color: #8e3d37; border-bottom-color: #efc2bd; background: #fff2ef; }
+.context-message-grid mark { padding: 2px 3px; color: #542925; border-radius: 2px; background: #ffc9bf; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 
 .empty-state { display: grid; place-items: center; padding: 60px 20px; text-align: center; }
 .empty-state > span { width: 46px; height: 46px; display: grid; place-items: center; margin-bottom: 12px; color: var(--plum); background: #e9e1e8; border-radius: 50%; }
@@ -415,6 +439,15 @@ h2 { letter-spacing: -.025em; }
   .overall-progress { width: 100%; }
   .overall-progress > span { text-align: left; }
   .record-bar small { display: none; }
+  .record-bar { align-items: flex-start; }
+  .record-actions { flex-wrap: wrap; justify-content: flex-end; }
+  .context-button { width: 32px; padding: 0; font-size: 0; }
+  .context-backdrop { padding: 10px; }
+  .context-modal { height: 94vh; max-height: 94vh; }
+  .context-heading { padding: 18px 17px 14px; }
+  .context-legend { align-items: flex-start; flex-direction: column; gap: 5px; padding: 9px 17px; }
+  .context-turns { padding: 12px 13px 20px; }
+  .context-message-grid { grid-template-columns: 1fr; }
   .select-control select { width: min(100%, 300px); }
   .comparison-controls { width: 100%; }
   .comparison-controls .select-control select { width: 100%; }

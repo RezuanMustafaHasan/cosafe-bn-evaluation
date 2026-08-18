@@ -62,7 +62,17 @@ async function getSentenceMap(ids) {
 }
 
 async function getSentence(itemId) {
-  return (await getSentenceMap([itemId])).get(itemId) || null
+  const conversationId = conversationIdFromSentenceId(itemId)
+  if (!conversationId) return null
+  const document = await db.collection('items').doc(conversationId).get()
+  if (!document.exists) return null
+  const conversation = document.data()
+  const sentence = deriveSentencePairs(conversation, document.id).find((entry) => entry.id === itemId)
+  return sentence ? {
+    ...sentence,
+    originalMessages: conversation.originalMessages || [],
+    translatedMessages: conversation.translatedMessages || [],
+  } : null
 }
 
 function isoDate(value) {
