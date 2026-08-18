@@ -4,6 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { FieldValue } from 'firebase-admin/firestore'
 import { assertFirebase, db } from '../server/firebase-admin.js'
+import { deriveSentencePairs } from '../server/sentences.js'
 
 assertFirebase()
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url))
@@ -34,6 +35,7 @@ function itemId(category, index) {
 let batch = db.batch()
 let batchSize = 0
 let total = 0
+let sentenceTotal = 0
 
 async function commitIfNeeded(force = false) {
   if (batchSize >= 400 || (force && batchSize)) {
@@ -57,20 +59,29 @@ for (const filename of jsonFiles) {
   const category = path.basename(filename, '.json')
   for (let index = 0; index < originals.length; index += 1) {
     const id = itemId(category, index)
-    batch.set(db.collection('items').doc(id), {
+    const conversation = {
       category,
       sourceFile: filename,
       sourceIndex: index + 1,
       originalMessages: originals[index],
       translatedMessages: translations[index],
       importedAt: FieldValue.serverTimestamp(),
-    })
+    }
+    batch.set(db.collection('items').doc(id), conversation)
     batchSize += 1
     total += 1
+    sentenceTotal += deriveSentencePairs(conversation, id).length
     await commitIfNeeded()
   }
   console.log(`Prepared ${filename}: ${originals.length} conversations`)
 }
 
 await commitIfNeeded(true)
-console.log(`Imported ${total} paired conversations into Firestore.`)
+await db.collection('settings').doc('dataset').set({
+  conversationCount: total,
+  sentenceCount: sentenceTotal,
+  schemaVersion: 3,
+  updatedAt: FieldValue.serverTimestamp(),
+}, { merge: true })
+console.log(`Imported ${total} paired conversations. ${sentenceTotal} aligned sentence units are derived on demand.`)
+console.log('Open the admin Sample set and generate a new 500-sentence sample.')

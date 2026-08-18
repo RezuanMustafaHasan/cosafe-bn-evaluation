@@ -1,6 +1,6 @@
 # Onubad Review — CoSafe Bengali translation evaluation
 
-A full-stack review workspace for the human evaluation of the Bengali 12B CoSafe translation. It imports the 1,400 English/Bengali conversation pairs already in this workspace, creates a reproducible category-balanced sample, and supports independent annotation plus admin analysis.
+A full-stack review workspace for the human evaluation of the Bengali 12B CoSafe translation. It preserves all 1,400 English/Bengali conversations for corpus browsing, derives 13,630 semantically aligned sentence units on demand, and creates a reproducible 500-sentence sample for independent annotation.
 
 ## What is included
 
@@ -9,8 +9,10 @@ A full-stack review workspace for the human evaluation of the Bengali 12B CoSafe
 - Express API with verified Firebase ID tokens and role-based access
 - Cloud Firestore persistence through the server-side Admin SDK
 - Admin-created users, account enable/disable controls, and progress monitoring
-- Reproducible random sample generation (500 by default), plus manual add/remove curation
-- Side-by-side English/Bengali conversation review
+- Reproducible sentence-level random sampling (500 by default), plus manual add/remove and whole-sample deletion
+- One English/Bengali sentence pair per annotator rating, with a collapsible sample queue
+- Full 1,400-conversation side-by-side dataset browser for administrators
+- Live annotation-update table and one-file CSV export at any study stage
 - 1–5 ratings for adequacy, fluency, and semantic preservation
 - Drafts, issue tags, notes, submission progress, item-level comparison, and Fleiss’ kappa
 - Vercel deployment configuration
@@ -73,7 +75,7 @@ The importer reads these exact directories and aligns records by filename and li
 - `Cosafe Dataset Translation/CoSafe datasets Main/`
 - `Cosafe Dataset Translation/Cosafe dataset Bengali 12B/`
 
-It validates that both sides have the same number of conversations before writing 1,400 paired `items` documents. Running it again safely overwrites the same deterministic item IDs.
+It validates that both sides have the same number of conversations before writing 1,400 paired `items` documents. Sentence pairs are derived on demand: sentences are paired by position when both translations have the same sentence count, while structurally mismatched turns remain intact as flagged full-turn fallbacks. This avoids duplicating the corpus in Firestore and stays efficient on the free tier. Running the importer again safely overwrites the same deterministic conversation IDs. After importing, generate a fresh 500-sentence sample from the admin Sample set.
 
 ### 6. Run locally
 
@@ -87,7 +89,7 @@ npm run dev:api
 npm run dev
 ```
 
-Open `http://localhost:5173`, sign in as the administrator, generate the 500-item sample, inspect or adjust it, then create the three annotator accounts.
+Open `http://localhost:5173`, sign in as the administrator, generate the 500-sentence sample, inspect all pages or adjust it, then create the three annotator accounts.
 
 To preview the interface without Firebase, temporarily set `VITE_DEMO_MODE=true`. Keep it `false` in production.
 
@@ -103,12 +105,13 @@ Do not upload the service-account JSON file to Vercel. Add only its three values
 
 ## Suggested evaluation protocol
 
-Use three independent annotators, each rating all 500 sampled items. Keep the criteria and scale definitions fixed before annotation starts. The dashboard calculates Fleiss’ kappa using exact 1–5 categories on items submitted by every active annotator. Because the scale is ordinal, report a weighted agreement statistic as a sensitivity analysis in the thesis; export/report tooling can be added after the annotation protocol is finalized.
+Use three independent annotators, each rating all 500 sampled English/Bengali sentence pairs. Keep the criteria and scale definitions fixed before annotation starts. The dashboard calculates Fleiss’ kappa using exact 1–5 categories on sentences submitted by every active annotator. Because the scale is ordinal, report a weighted agreement statistic as a sensitivity analysis in the thesis. The Annotation updates view and CSV export remain available throughout collection, including drafts and not-started assignments.
 
 ## Data model
 
 - `items/{itemId}` — immutable paired source/translation conversations
-- `settings/study` — active sample IDs, seed, method, target size, and revision
+- Derived sentence IDs — deterministic references into an `items` conversation, turn, and sentence position; text is derived on demand
+- `settings/study` — active 500 sentence IDs, seed, method, target size, and revision
 - `users/{uid}` — display name, role, and access state
 - `annotations/{uid_itemId}` — one annotator’s ratings, issues, note, and status for one item
 

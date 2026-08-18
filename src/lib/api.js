@@ -1,9 +1,10 @@
 import { auth, isDemoMode } from './firebase.js'
-import { demoAnnotations, demoItems, demoUsers } from '../data/demo.js'
+import { demoAnnotations, demoItems, demoSentences, demoUsers } from '../data/demo.js'
 
 const delay = (milliseconds = 180) => new Promise((resolve) => setTimeout(resolve, milliseconds))
 const demoState = {
-  items: [...demoItems],
+  items: [...demoSentences],
+  conversations: [...demoItems],
   users: [...demoUsers],
   annotations: [...demoAnnotations],
   seed: 'cosafe-thesis-2026',
@@ -36,7 +37,7 @@ async function mockRequest(method, path, body) {
     const own = demoState.annotations.filter((annotation) => annotation.userId === currentUser.uid)
     return {
       study: { sampleSize: demoState.items.length, targetSize: 500, seed: demoState.seed, revision: 1 },
-      queue: demoState.items.map((item, index) => ({ id: item.id, order: index + 1, category: item.category, sourceIndex: item.sourceIndex })),
+      queue: demoState.items.map((item, index) => ({ id: item.id, order: index + 1, category: item.category, sourceIndex: item.sourceIndex, turnIndex: item.turnIndex, role: item.role })),
       annotations: Object.fromEntries(own.map((annotation) => [annotation.itemId, annotation])),
     }
   }
@@ -64,23 +65,43 @@ async function mockRequest(method, path, body) {
   if (path === '/admin/stats') return stats()
   if (path === '/admin/sample') return {
     study: { sampleIds: demoState.items.map((item) => item.id), targetSize: 500, seed: demoState.seed, method: 'category-balanced', revision: 1 },
-    items: demoState.items.map((item, index) => ({ id: item.id, order: index + 1, category: item.category, sourceIndex: item.sourceIndex, preview: item.originalMessages[0].content })),
+    items: demoState.items.map((item, index) => ({ id: item.id, order: index + 1, category: item.category, sourceIndex: item.sourceIndex, turnIndex: item.turnIndex, role: item.role, originalText: item.originalText, translatedText: item.translatedText })),
   }
   if (path === '/admin/sample/generate' && method === 'POST') {
     demoState.seed = body.seed
-    return { ok: true, count: body.count }
+    demoState.items = [...demoSentences]
+    return { ok: true, count: Math.min(body.count, demoState.items.length) }
   }
-  if (path === '/admin/items/search') return demoItems.map((item) => ({ id: item.id, category: item.category, sourceIndex: item.sourceIndex, preview: item.originalMessages[0].content }))
+  if (path === '/admin/items/search') return demoSentences.map((item) => ({ id: item.id, category: item.category, sourceIndex: item.sourceIndex, turnIndex: item.turnIndex, originalText: item.originalText, translatedText: item.translatedText }))
   if (path === '/admin/sample/items' && method === 'POST') return { ok: true }
   if (path.startsWith('/admin/sample/items/') && method === 'DELETE') {
     const itemId = path.split('/').at(-1)
     demoState.items = demoState.items.filter((item) => item.id !== itemId)
     return { ok: true }
   }
+  if (path === '/admin/sample' && method === 'DELETE') {
+    const removed = demoState.items.length
+    demoState.items = []
+    return { ok: true, removed }
+  }
+  if (path.startsWith('/admin/dataset')) {
+    const query = new URLSearchParams(path.split('?')[1] || '')
+    const page = Number(query.get('page') || 1)
+    const pageSize = Number(query.get('pageSize') || 20)
+    const start = (page - 1) * pageSize
+    return { page, pageSize, total: demoState.conversations.length, items: structuredClone(demoState.conversations.slice(start, start + pageSize)) }
+  }
+  if (path === '/admin/updates') {
+    const updates = demoState.items.flatMap((item, order) => demoState.users.map((user) => {
+      const annotation = demoState.annotations.find((entry) => entry.itemId === item.id && entry.userId === user.uid)
+      return { ...item, order: order + 1, itemId: item.id, userId: user.uid, annotatorName: user.displayName, annotatorEmail: user.email, status: annotation?.status || 'not-started', ratings: annotation?.ratings || { adequacy: null, fluency: null, semantic: null }, issueTags: annotation?.issueTags || [], notes: annotation?.notes || '', updatedAt: annotation ? new Date().toISOString() : '' }
+    }))
+    return { sampleSize: demoState.items.length, annotatorCount: demoState.users.length, updates }
+  }
   if (path.startsWith('/admin/comparison/')) {
     const itemId = path.split('/').at(-1)
     return {
-      item: structuredClone(demoItems.find((item) => item.id === itemId)),
+      item: structuredClone(demoSentences.find((item) => item.id === itemId)),
       annotations: structuredClone(demoState.annotations.filter((annotation) => annotation.itemId === itemId)),
     }
   }
@@ -103,6 +124,21 @@ async function request(method, path, body) {
   return payload
 }
 
+async function download(path) {
+  if (isDemoMode) {
+    const header = 'sample_order,item_id,status,adequacy,fluency,semantic_preservation\n'
+    const rows = demoState.annotations.map((entry, index) => `${index + 1},${entry.itemId},${entry.status},${entry.ratings.adequacy || ''},${entry.ratings.fluency || ''},${entry.ratings.semantic || ''}`)
+    return new Blob([header, ...rows.map((row) => `\n${row}`)], { type: 'text/csv' })
+  }
+  const token = await auth?.currentUser?.getIdToken()
+  const response = await fetch(`/api${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}))
+    throw new Error(payload.error || 'The download could not be prepared.')
+  }
+  return response.blob()
+}
+
 export const api = {
   demoUser,
   get: (path) => request('GET', path),
@@ -110,4 +146,5 @@ export const api = {
   put: (path, body) => request('PUT', path, body),
   patch: (path, body) => request('PATCH', path, body),
   delete: (path) => request('DELETE', path),
+  download,
 }

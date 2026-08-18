@@ -58,7 +58,19 @@ export const demoUsers = [
   { uid: 'ann-3', displayName: 'Farzana Rahman', email: 'farzana@example.com', role: 'annotator', disabled: false },
 ]
 
-export const demoAnnotations = demoItems.flatMap((item, itemIndex) => demoUsers.map((user, userIndex) => ({
+export const demoSentences = demoItems.flatMap((item) => item.originalMessages.map((message, turnIndex) => ({
+  id: `${item.id}_turn_${String(turnIndex + 1).padStart(2, '0')}`,
+  category: item.category,
+  conversationId: item.id,
+  sourceIndex: item.sourceIndex,
+  turnIndex: turnIndex + 1,
+  sentenceIndex: 1,
+  role: message.role,
+  originalText: message.content,
+  translatedText: item.translatedMessages[turnIndex]?.content || '',
+})))
+
+export const demoAnnotations = demoSentences.flatMap((item, itemIndex) => demoUsers.map((user, userIndex) => ({
   id: `${user.uid}_${item.id}`,
   userId: user.uid,
   itemId: item.id,
@@ -70,5 +82,5 @@ export const demoAnnotations = demoItems.flatMap((item, itemIndex) => demoUsers.
   },
   issueTags: itemIndex === 0 && userIndex === 1 ? ['Name transliteration'] : [],
   notes: itemIndex === 0 && userIndex === 1 ? 'The proper name is partly preserved in Latin script.' : '',
-  status: itemIndex < 3 || userIndex === 0 ? 'submitted' : 'draft',
+  status: itemIndex < 5 || userIndex === 0 ? 'submitted' : 'draft',
 })))
