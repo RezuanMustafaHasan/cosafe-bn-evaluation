@@ -295,6 +295,8 @@ function Comparison({ sample }) {
   const [selected, setSelected] = useState(sample?.items?.[0]?.id || '')
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
+  const items = sample?.items || []
+  const selectedIndex = items.findIndex((item) => item.id === selected)
   useEffect(() => { if (!selected && sample?.items?.[0]) setSelected(sample.items[0].id) }, [sample, selected])
   useEffect(() => {
     if (!selected) return
@@ -302,8 +304,13 @@ function Comparison({ sample }) {
     api.get(`/admin/comparison/${selected}`).then(setData).finally(() => setLoading(false))
   }, [selected])
 
+  function moveSentence(direction) {
+    const nextIndex = selectedIndex + direction
+    if (nextIndex >= 0 && nextIndex < items.length) setSelected(items[nextIndex].id)
+  }
+
   return <>
-    <PageHeader eyebrow="Item-level evidence" title="Compare annotator judgments" description="Review every independent rating for one translation without exposing annotators to each other during annotation." actions={<label className="select-control"><span>Sample item</span><select value={selected} onChange={(event) => setSelected(event.target.value)}>{sample?.items?.map((item) => <option key={item.id} value={item.id}>#{item.order} · {prettyCategory(item.category)}</option>)}</select></label>} />
+    <PageHeader eyebrow="Item-level evidence" title="Compare annotator judgments" description="Review every independent rating for one translation without exposing annotators to each other during annotation." actions={<div className="comparison-controls"><label className="select-control"><span>Jump to sample item</span><select value={selected} onChange={(event) => setSelected(event.target.value)}>{items.map((item) => <option key={item.id} value={item.id}>#{item.order} · {prettyCategory(item.category)}</option>)}</select></label><div className="sentence-stepper"><button className="button secondary" disabled={selectedIndex <= 0} onClick={() => moveSentence(-1)}><ChevronLeft size={16} />Previous</button><span><strong>{selectedIndex >= 0 ? selectedIndex + 1 : 0}</strong> of {items.length}</span><button className="button primary" disabled={selectedIndex < 0 || selectedIndex >= items.length - 1} onClick={() => moveSentence(1)}>Next<ChevronRight size={16} /></button></div></div>} />
     {loading ? <Spinner label="Loading comparison" /> : data ? <>
       <section className="comparison-meta"><span className="record-id">{data.item.id}</span><span>{prettyCategory(data.item.category)}</span><span>Source row {data.item.sourceIndex}</span></section>
       <SentencePair item={data.item} compact />
