@@ -111,13 +111,22 @@ const adminNavigation = [
 function Shell({ active, setActive, children, annotationMode = false }) {
   const { user, signOut } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => annotationMode && localStorage.getItem('cosafe-sidebar-collapsed') === 'true')
   const navigation = annotationMode ? [{ id: 'annotate', label: 'Review workspace', icon: ClipboardCheck }] : adminNavigation
+  function toggleSidebar() {
+    setSidebarCollapsed((current) => {
+      const next = !current
+      localStorage.setItem('cosafe-sidebar-collapsed', String(next))
+      return next
+    })
+  }
   return (
-    <div className="app-shell">
-      <aside className={`sidebar ${mobileOpen ? 'open' : ''}`}>
-        <div className="brand"><span className="brand-mark"><Languages size={19} /></span><span>Onubad Review</span></div>
+    <div className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      <aside className={`sidebar ${mobileOpen ? 'open' : ''} ${sidebarCollapsed ? 'collapsed' : ''}`}>
+        <div className="brand"><span className="brand-mark"><Languages size={19} /></span><span className="brand-name">Onubad Review</span></div>
+        {annotationMode && <button className="sidebar-collapse-button" onClick={toggleSidebar} title={sidebarCollapsed ? 'Expand navigation panel' : 'Minimize navigation panel'} aria-label={sidebarCollapsed ? 'Expand navigation panel' : 'Minimize navigation panel'}>{sidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}</button>}
         <div className="study-label"><span>Active study</span><strong>CoSafe Bengali 12B</strong><small>Translation quality evaluation</small></div>
-        <nav>{navigation.map(({ id, label, icon: Icon }) => <button key={id} className={active === id ? 'active' : ''} onClick={() => { setActive?.(id); setMobileOpen(false) }}><Icon size={18} />{label}</button>)}</nav>
+        <nav>{navigation.map(({ id, label, icon: Icon }) => <button key={id} title={sidebarCollapsed ? label : undefined} className={active === id ? 'active' : ''} onClick={() => { setActive?.(id); setMobileOpen(false) }}><Icon size={18} /><span>{label}</span></button>)}</nav>
         <div className="sidebar-bottom">
           <div className="role-pill"><ShieldCheck size={14} />{user.role === 'admin' ? 'Administrator' : 'Independent annotator'}</div>
           <div className="user-block"><span className="avatar">{user.displayName?.split(' ').map((part) => part[0]).slice(0, 2).join('')}</span><span><strong>{user.displayName}</strong><small>{user.email}</small></span><button title="Sign out" onClick={signOut}><LogOut size={17} /></button></div>
