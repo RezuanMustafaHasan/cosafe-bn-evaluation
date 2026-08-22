@@ -330,6 +330,12 @@ h2 { letter-spacing: -.025em; }
 .context-button { min-height: 32px; margin-right: 5px; padding: 0 10px; font-size: 10px; }
 .queue-inline-toggle { display: none; }
 .queue-collapsed .queue-inline-toggle { display: grid; flex: 0 0 auto; }
+.inline-rating-panel { margin-top: 12px; padding: 15px; border: 1px solid var(--line); background: var(--paper); }
+.inline-rating-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.inline-rating-heading h2 { margin: 0; font-size: 17px; }
+.inline-rating-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.inline-rating-grid .rating-group { min-width: 0; padding: 11px; border: 1px solid #e1dad3; border-radius: 6px; background: #fdfbf8; }
+.inline-rating-grid .rating-group > p:first-of-type { min-height: 24px; }
 .evaluation-panel { min-height: 0; overflow-y: auto; padding: 18px; border-left: 1px solid var(--line); background: var(--paper); }
 .evaluation-heading { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 17px; }
 .evaluation-heading h2 { margin: 0; font-size: 18px; }
@@ -448,6 +454,9 @@ h2 { letter-spacing: -.025em; }
   .metric-grid { grid-template-columns: 1fr; }
   .sampling-card { grid-template-columns: 1fr; }
   .sampling-intro { grid-column: auto; }
+  .inline-rating-panel { padding: 12px; }
+  .inline-rating-grid { grid-template-columns: 1fr; gap: 8px; }
+  .inline-rating-grid .rating-group > p:first-of-type { min-height: 0; }
   .conversation-pair { grid-template-columns: 1fr; }
   .sentence-pair { grid-template-columns: 1fr; }
   .sentence-card { min-height: 160px; }
