@@ -1,3 +1,5 @@
+import { RATING_CATEGORIES } from './rating-scale.js'
+
 const CRITERIA = ['adequacy', 'fluency', 'semantic']
 
 export function seededRandom(seed = 'cosafe') {
@@ -52,7 +54,7 @@ export function balancedSample(items, requestedCount, seed) {
   return shuffle(selected, random)
 }
 
-export function fleissKappa(rows, categories = [1, 2, 3, 4, 5]) {
+export function fleissKappa(rows, categories = RATING_CATEGORIES) {
   const completeRows = rows.filter((row) => row.length >= 2)
   if (!completeRows.length) return null
 

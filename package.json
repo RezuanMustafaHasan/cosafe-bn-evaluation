@@ -17,7 +17,8 @@
     "lint": "eslint .",
     "test": "node --test server/**/*.test.js",
     "firebase:import": "node scripts/import-dataset.js",
-    "firebase:admin": "node scripts/bootstrap-admin.js"
+    "firebase:admin": "node scripts/bootstrap-admin.js",
+    "firebase:migrate-ratings": "node scripts/migrate-rating-scale.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

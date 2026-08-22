@@ -25,7 +25,7 @@ function stats() {
   return {
     sampleSize: demoState.items.length,
     progress,
-    agreement: { completeItems: 3, kappa: { adequacy: 0.71, fluency: 0.64, semantic: 0.79 } },
+    agreement: { completeItems: 3, kappa: { adequacy: 0.56, fluency: 0.48, semantic: 0.63 } },
   }
 }
 
@@ -53,7 +53,7 @@ async function mockRequest(method, path, body) {
   if (method === 'PUT' && path.startsWith('/annotations/')) {
     const itemId = path.split('/').at(-1)
     const existing = demoState.annotations.findIndex((annotation) => annotation.userId === currentUser.uid && annotation.itemId === itemId)
-    const next = { ...body, id: `${currentUser.uid}_${itemId}`, itemId, userId: currentUser.uid, annotatorName: currentUser.displayName }
+    const next = { ...body, id: `${currentUser.uid}_${itemId}`, itemId, userId: currentUser.uid, annotatorName: currentUser.displayName, ratingScaleVersion: 3 }
     if (existing >= 0) demoState.annotations[existing] = next
     else demoState.annotations.push(next)
     return { ok: true }

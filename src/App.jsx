@@ -10,11 +10,39 @@ import { api } from './lib/api.js'
 import { isDemoMode, isFirebaseConfigured } from './lib/firebase.js'
 
 const criteria = [
-  { key: 'adequacy', name: 'Adequacy', hint: 'Is all source information represented?' },
-  { key: 'fluency', name: 'Fluency', hint: 'Does the Bengali read naturally?' },
-  { key: 'semantic', name: 'Semantic preservation', hint: 'Is the original meaning retained?' },
+  {
+    key: 'adequacy',
+    name: 'Adequacy',
+    hint: 'Is all source information represented?',
+    levels: [
+      'Important information is missing, added, or incorrect.',
+      'The main information is present, with a minor omission or addition.',
+      'All important information is represented.',
+    ],
+  },
+  {
+    key: 'fluency',
+    name: 'Fluency',
+    hint: 'Does the Bengali read naturally?',
+    levels: [
+      'The Bengali is difficult to understand or seriously ungrammatical.',
+      'It is understandable but has awkward wording or minor grammar problems.',
+      'It reads as natural, fluent Bengali.',
+    ],
+  },
+  {
+    key: 'semantic',
+    name: 'Semantic preservation',
+    hint: 'Is the original meaning retained?',
+    levels: [
+      'The original meaning is materially changed.',
+      'The core meaning remains, with a minor shift.',
+      'The original meaning is fully retained.',
+    ],
+  },
 ]
-const ratingLabels = ['Poor', 'Weak', 'Acceptable', 'Good', 'Excellent']
+const ratingLabels = ['Major problem', 'Minor problem', 'No substantive problem']
+const ratingButtonLabels = ['Major', 'Minor', 'No issue']
 const issueOptions = ['Mistranslation', 'Missing content', 'Added content', 'Grammar', 'Name transliteration', 'Mixed script']
 
 function prettyCategory(value = '') {
@@ -73,7 +101,7 @@ function Login() {
         </div>
         <div className="study-note">
           <div className="study-note-icon"><FlaskConical size={19} /></div>
-          <div><strong>Study protocol</strong><span>3 annotators · 3 criteria · 5-point scale</span></div>
+          <div><strong>Study protocol</strong><span>3 annotators · 3 criteria · 3-point scale</span></div>
         </div>
         <div className="script-motif" aria-hidden="true">অ</div>
       </section>
@@ -169,7 +197,7 @@ function Overview({ stats, loading, onRefresh, onExport }) {
       <section className="panel agreement-panel"><div className="panel-heading"><div><p className="eyebrow">Inter-annotator agreement</p><h2>Fleiss’ κ</h2></div><CircleHelp size={17} className="muted-icon" /></div>
         <p className="panel-intro">Exact-category agreement across items completed by every active annotator.</p>
         <div className="kappa-list">{criteria.map((criterion) => { const value = stats.agreement.kappa[criterion.key]; return <div key={criterion.key}><div><span>{criterion.name}</span><strong>{formatKappa(value)}</strong></div><div className="kappa-scale"><i style={{ width: `${Math.max(0, (value || 0) * 100)}%` }} /></div><small>{kappaLabel(value)}</small></div> })}</div>
-        <div className="method-note"><FlaskConical size={16} /><span>Use weighted agreement as a sensitivity analysis because the 1–5 ratings are ordinal.</span></div>
+        <div className="method-note"><FlaskConical size={16} /><span>The three-level ratings are ordinal; report exact Fleiss’ κ with percentage agreement.</span></div>
       </section>
     </div>
   </>
@@ -429,8 +457,16 @@ function AdminApp() {
   </main><Toast message={toast} onClose={() => setToast('')} /></Shell>
 }
 
+function ScoringGuide() {
+  return <details className="scoring-guide" open><summary><span><CircleHelp size={14} />Scoring guide</span><small>Judge the correction required</small></summary><div className="scale-guide">
+    <div><b>1</b><span><strong>Major problem</strong><small>A substantive error that requires major revision.</small></span></div>
+    <div><b>2</b><span><strong>Minor problem</strong><small>Core translation is correct but needs minor editing.</small></span></div>
+    <div><b>3</b><span><strong>No substantive problem</strong><small>No meaningful correction is required.</small></span></div>
+  </div><div className="criterion-guide">{criteria.map((criterion) => <div key={criterion.key}><strong>{criterion.name}</strong>{criterion.levels.map((level, index) => <p key={level}><b>{index + 1}</b><span>{level}</span></p>)}</div>)}</div></details>
+}
+
 function RatingGroup({ criterion, value, onChange }) {
-  return <fieldset className="rating-group"><legend><span>{criterion.name}</span><button type="button" title={criterion.hint}><CircleHelp size={15} /></button></legend><p>{criterion.hint}</p><div className="rating-buttons">{[1, 2, 3, 4, 5].map((rating) => <button type="button" className={value === rating ? 'selected' : ''} aria-label={`${criterion.name}: ${rating}, ${ratingLabels[rating - 1]}`} key={rating} onClick={() => onChange(rating)}><strong>{rating}</strong><small>{ratingLabels[rating - 1]}</small></button>)}</div></fieldset>
+  return <fieldset className="rating-group"><legend><span>{criterion.name}</span><button type="button" title={criterion.hint}><CircleHelp size={15} /></button></legend><p>{criterion.hint}</p><div className="rating-buttons">{[1, 2, 3].map((rating) => <button type="button" title={criterion.levels[rating - 1]} className={value === rating ? 'selected' : ''} aria-label={`${criterion.name}: ${rating}, ${ratingLabels[rating - 1]}. ${criterion.levels[rating - 1]}`} key={rating} onClick={() => onChange(rating)}><strong>{rating}</strong><small>{ratingButtonLabels[rating - 1]}</small></button>)}</div>{value ? <p className="selected-anchor"><strong>{ratingLabels[value - 1]}:</strong> {criterion.levels[value - 1]}</p> : <p className="selected-anchor quiet">Select the amount of correction this criterion needs.</p>}</fieldset>
 }
 
 function AnnotationApp() {
@@ -500,7 +536,7 @@ function AnnotationApp() {
     {!queue.length ? <EmptyState icon={Database} title="The sentence sample is not ready" text="Ask the administrator to import sentence pairs and generate the active 500-sentence sample." /> : <div className={`annotation-layout ${queueCollapsed ? 'queue-collapsed' : ''}`}>
       <aside className={`queue-panel ${queueCollapsed ? 'collapsed' : ''}`}><div className="queue-heading"><h2>Sentence queue</h2><span>{queue.length}</span><button className="icon-button" onClick={toggleQueue} title={queueCollapsed ? 'Expand sample queue' : 'Minimize sample queue'}>{queueCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}</button></div><label className="search-box"><Search size={15} /><input placeholder="Find sentence" value={search} onChange={(event) => setSearch(event.target.value)} /></label><div className="filter-row"><Filter size={14} /><button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>All</button><button className={filter === 'submitted' ? 'active' : ''} onClick={() => setFilter('submitted')}>Done</button><button className={filter === 'draft' ? 'active' : ''} onClick={() => setFilter('draft')}>Drafts</button></div><div className="queue-list">{visibleQueue.map((entry) => { const status = study.annotations[entry.id]?.status || 'not-started'; return <button className={selected === entry.id ? 'active' : ''} key={entry.id} onClick={() => setSelected(entry.id)}><span className={`queue-status ${status}`}>{status === 'submitted' ? <Check size={13} /> : entry.order}</span><span><strong>{prettyCategory(entry.category)}</strong><small>Conversation {entry.sourceIndex} · Turn {entry.turnIndex} · Sentence {entry.sentenceIndex || 1}</small></span></button> })}</div></aside>
       <section className="review-canvas"><div className="record-bar"><div><button className="icon-button queue-inline-toggle" onClick={toggleQueue} title={queueCollapsed ? 'Expand sample queue' : 'Minimize sample queue'}>{queueCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}</button><span>SENTENCE {String(currentIndex + 1).padStart(3, '0')}</span><strong>{prettyCategory(item?.category)}</strong><small>Conversation {item?.sourceIndex} · Turn {item?.turnIndex} · Sentence {item?.sentenceIndex || 1} · {item?.role}</small></div><div className="record-actions"><button className="button secondary context-button" disabled={!item} onClick={() => setShowContext(true)}><MessageSquareText size={15} />View context</button><button className="icon-button" disabled={currentIndex <= 0} onClick={() => setSelected(queue[currentIndex - 1].id)} title="Previous sentence"><ChevronLeft size={18} /></button><button className="icon-button" disabled={currentIndex >= queue.length - 1} onClick={() => setSelected(queue[currentIndex + 1].id)} title="Next sentence"><ChevronRight size={18} /></button></div></div>{item ? <SentencePair item={item} /> : <Spinner label="Loading sentence pair" />}</section>
-      <aside className="evaluation-panel"><div className="evaluation-heading"><div><p className="eyebrow">Your evaluation</p><h2>Rate this translation</h2></div>{form.status === 'submitted' && <span className="submitted-badge"><Check size={14} />Submitted</span>}</div>{criteria.map((criterion) => <RatingGroup key={criterion.key} criterion={criterion} value={form.ratings[criterion.key]} onChange={(rating) => setForm((current) => ({ ...current, ratings: { ...current.ratings, [criterion.key]: rating }, status: 'draft' }))} />)}
+      <aside className="evaluation-panel"><div className="evaluation-heading"><div><p className="eyebrow">Your evaluation</p><h2>Rate this translation</h2></div>{form.status === 'submitted' && <span className="submitted-badge"><Check size={14} />Submitted</span>}</div><ScoringGuide />{criteria.map((criterion) => <RatingGroup key={criterion.key} criterion={criterion} value={form.ratings[criterion.key]} onChange={(rating) => setForm((current) => ({ ...current, ratings: { ...current.ratings, [criterion.key]: rating }, status: 'draft' }))} />)}
         <div className="issues"><span>Translation issues <small>optional</small></span><div>{issueOptions.map((issue) => <button className={form.issueTags.includes(issue) ? 'selected' : ''} key={issue} onClick={() => toggleIssue(issue)}>{form.issueTags.includes(issue) && <Check size={12} />}{issue}</button>)}</div></div>
         <label className="field notes"><span>Reviewer note <small>optional</small></span><textarea rows="3" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value, status: 'draft' })} placeholder="Briefly explain a rating or flag an issue…" /></label>
         <div className="evaluation-actions"><button className="button secondary" disabled={saving} onClick={() => save('draft')}>Save draft</button><button className="button primary" disabled={saving || !allRated} onClick={() => save('submitted')}>{saving ? <LoaderCircle className="spin" size={16} /> : <CheckCircle2 size={16} />}Submit & next</button></div>

@@ -13,7 +13,7 @@ A full-stack review workspace for the human evaluation of the Bengali 12B CoSafe
 - One English/Bengali sentence pair per annotator rating, with a collapsible sample queue
 - Full 1,400-conversation side-by-side dataset browser for administrators
 - Live annotation-update table and one-file CSV export at any study stage
-- 1–5 ratings for adequacy, fluency, and semantic preservation
+- Three-point ratings for adequacy, fluency, and semantic preservation, anchored by correction required
 - Drafts, issue tags, notes, submission progress, item-level comparison, and Fleiss’ kappa
 - Vercel deployment configuration
 
@@ -105,7 +105,16 @@ Do not upload the service-account JSON file to Vercel. Add only its three values
 
 ## Suggested evaluation protocol
 
-Use three independent annotators, each rating all 500 sampled English/Bengali sentence pairs. Keep the criteria and scale definitions fixed before annotation starts. The dashboard calculates Fleiss’ kappa using exact 1–5 categories on sentences submitted by every active annotator. Because the scale is ordinal, report a weighted agreement statistic as a sensitivity analysis in the thesis. The Annotation updates view and CSV export remain available throughout collection, including drafts and not-started assignments.
+Use three independent annotators, each rating all 500 sampled English/Bengali sentence pairs. Keep the criteria and three-point scale definitions fixed before annotation starts. The levels are: 1 = major problem requiring major revision, 2 = minor problem requiring minor editing, and 3 = no substantive problem. The dashboard calculates Fleiss’ kappa using exact categories on sentences submitted by every active annotator. Report percentage agreement and category prevalence alongside kappa. The Annotation updates view and CSV export remain available throughout collection, including drafts and not-started assignments.
+
+Existing five-point annotations can be previewed and migrated with:
+
+```bash
+npm run firebase:migrate-ratings
+npm run firebase:migrate-ratings -- --apply
+```
+
+The migration maps `1–2 → 1`, `3 → 2`, and `4–5 → 3`. It preserves the source values in `legacyRatings5`, records the scale version, and skips documents already migrated.
 
 ## Data model
 

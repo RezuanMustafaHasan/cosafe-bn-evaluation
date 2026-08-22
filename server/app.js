@@ -3,6 +3,7 @@ import express from 'express'
 import { FieldPath, FieldValue } from 'firebase-admin/firestore'
 import { z } from 'zod'
 import { adminAuth, assertFirebase, db } from './firebase-admin.js'
+import { RATING_SCALE_VERSION } from './rating-scale.js'
 import { conversationIdFromSentenceId, deriveSentencePairs } from './sentences.js'
 import { balancedSample, calculateAgreement } from './study.js'
 
@@ -112,9 +113,9 @@ app.get('/api/items/:itemId', asyncRoute(async (request, response) => {
 
 const annotationSchema = z.object({
   ratings: z.object({
-    adequacy: z.number().int().min(1).max(5).nullable(),
-    fluency: z.number().int().min(1).max(5).nullable(),
-    semantic: z.number().int().min(1).max(5).nullable(),
+    adequacy: z.number().int().min(1).max(3).nullable(),
+    fluency: z.number().int().min(1).max(3).nullable(),
+    semantic: z.number().int().min(1).max(3).nullable(),
   }),
   issueTags: z.array(z.string().max(40)).max(10).default([]),
   notes: z.string().max(2000).default(''),
@@ -138,6 +139,7 @@ app.put('/api/annotations/:itemId', asyncRoute(async (request, response) => {
     userId: request.user.uid,
     annotatorName: request.user.displayName || request.user.email,
     studyRevision: study.revision || 1,
+    ratingScaleVersion: RATING_SCALE_VERSION,
     updatedAt: FieldValue.serverTimestamp(),
     ...(existing.exists ? {} : { createdAt: FieldValue.serverTimestamp() }),
     ...(parsed.status === 'submitted' ? { submittedAt: FieldValue.serverTimestamp() } : {}),
@@ -319,7 +321,7 @@ app.get('/api/admin/export.csv', requireAdmin, asyncRoute(async (_request, respo
   const annotations = annotationsSnapshot.docs.map((document) => document.data())
   const annotationMap = new Map(annotations.map((annotation) => [`${annotation.userId}_${annotation.itemId}`, annotation]))
   const sentences = await getSentenceMap(study.sampleIds)
-  const header = ['sample_order', 'item_id', 'category', 'conversation_row', 'turn', 'sentence_in_turn', 'alignment_warning', 'role', 'english', 'bengali', 'annotator_name', 'annotator_email', 'status', 'adequacy', 'fluency', 'semantic_preservation', 'issue_tags', 'notes', 'updated_at', 'submitted_at']
+  const header = ['sample_order', 'item_id', 'category', 'conversation_row', 'turn', 'sentence_in_turn', 'alignment_warning', 'role', 'english', 'bengali', 'annotator_name', 'annotator_email', 'status', 'rating_scale', 'adequacy', 'fluency', 'semantic_preservation', 'legacy_adequacy_5', 'legacy_fluency_5', 'legacy_semantic_preservation_5', 'issue_tags', 'notes', 'updated_at', 'submitted_at']
   const rows = [header.map(csvCell).join(',')]
   study.sampleIds.forEach((itemId, order) => {
     const sentence = sentences.get(itemId)
@@ -329,8 +331,9 @@ app.get('/api/admin/export.csv', requireAdmin, asyncRoute(async (_request, respo
       rows.push([
         order + 1, itemId, sentence.category, sentence.sourceIndex, sentence.turnIndex, sentence.sentenceIndex, sentence.alignmentWarning, sentence.role,
         sentence.originalText, sentence.translatedText, user.displayName, user.email,
-        annotation?.status || 'not-started', annotation?.ratings?.adequacy, annotation?.ratings?.fluency,
-        annotation?.ratings?.semantic, annotation?.issueTags?.join('|') || '', annotation?.notes || '',
+        annotation?.status || 'not-started', annotation?.ratingScaleVersion || '', annotation?.ratings?.adequacy, annotation?.ratings?.fluency,
+        annotation?.ratings?.semantic, annotation?.legacyRatings5?.adequacy, annotation?.legacyRatings5?.fluency,
+        annotation?.legacyRatings5?.semantic, annotation?.issueTags?.join('|') || '', annotation?.notes || '',
         isoDate(annotation?.updatedAt), isoDate(annotation?.submittedAt),
       ].map(csvCell).join(','))
     })
